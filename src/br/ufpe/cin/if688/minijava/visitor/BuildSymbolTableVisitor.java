@@ -105,7 +105,7 @@ public class BuildSymbolTableVisitor implements IVisitor<Void> {
 	// MethodDeclList ml;
 	public Void visit(ClassDeclExtends n) {
 		String cn = n.i.toString();
-		if(!this.symbolTable.addClass(cn, null)) {
+		if(!this.symbolTable.addClass(cn, n.j.toString())) {
 			System.err.println("error: duplicate class: " + cn);
 		} else {
 			this.currClass = this.symbolTable.getClass(cn);
@@ -129,12 +129,12 @@ public class BuildSymbolTableVisitor implements IVisitor<Void> {
 		String idn = n.i.toString();
 		if(this.currMethod != null) {
 			if(!this.currMethod.addVar(idn, n.t)) {
-				System.err.println("error: variable " + idn + " is already defined in method " + this.currMethod.getId().toString() + "(...)");
+				System.err.println("error: variable " + idn + " is already defined in method " + this.currMethod.getId() + "(...)");
 				ok = false;
 			}
 		} else {
 			if(!this.currClass.addVar(idn, n.t)) {
-				System.err.println("error: variable " + idn + " is already defined in class " + this.currClass.getId().toString());
+				System.err.println("error: variable " + idn + " is already defined in class " + this.currClass.getId());
 				ok = false;
 			}
 		}
@@ -154,7 +154,7 @@ public class BuildSymbolTableVisitor implements IVisitor<Void> {
 	public Void visit(MethodDecl n) {
 		String idn = n.i.toString();
 		if(!this.currClass.addMethod(idn, n.t)) {
-			System.err.println("error: method " + idn + "(...) is already defined in class " + this.currClass.getId().toString());
+			System.err.println("error: method " + idn + "(...) is already defined in class " + this.currClass.getId());
 		} else {
 			this.currMethod = this.currClass.getMethod(idn);
 			n.t.accept(this);
@@ -179,7 +179,7 @@ public class BuildSymbolTableVisitor implements IVisitor<Void> {
 	public Void visit(Formal n) {
 		String idn = n.i.toString();
 		if(!this.currMethod.addParam(idn, n.t)) {
-			System.err.println("error: parameter " + idn + " is already defined in method " + this.currMethod.getId().toString());
+			System.err.println("error: parameter " + idn + " is already defined in method " + this.currMethod.getId());
 		} else {
 			n.t.accept(this);
 			n.i.accept(this);

@@ -35,14 +35,20 @@ import br.ufpe.cin.if688.minijava.ast.True;
 import br.ufpe.cin.if688.minijava.ast.Type;
 import br.ufpe.cin.if688.minijava.ast.VarDecl;
 import br.ufpe.cin.if688.minijava.ast.While;
+import br.ufpe.cin.if688.minijava.symboltable.Method;
+import br.ufpe.cin.if688.minijava.symboltable.Class;
 import br.ufpe.cin.if688.minijava.symboltable.SymbolTable;
 
 public class TypeCheckVisitor implements IVisitor<Type> {
 
 	private SymbolTable symbolTable;
+    private Method currMethod;
+    private Class currClass;
 
 	TypeCheckVisitor(SymbolTable st) {
 		symbolTable = st;
+		this.currClass = null;
+		this.currMethod = null;
 	}
 
 	// MainClass m;
@@ -58,9 +64,11 @@ public class TypeCheckVisitor implements IVisitor<Type> {
 	// Identifier i1,i2;
 	// Statement s;
 	public Type visit(MainClass n) {
+		this.currClass = this.symbolTable.getClass(n.i1.s);
 		n.i1.accept(this);
 		n.i2.accept(this);
 		n.s.accept(this);
+		this.currClass = null;
 		return null;
 	}
 
@@ -68,6 +76,7 @@ public class TypeCheckVisitor implements IVisitor<Type> {
 	// VarDeclList vl;
 	// MethodDeclList ml;
 	public Type visit(ClassDeclSimple n) {
+		this.currClass = this.symbolTable.getClass(n.i.s);
 		n.i.accept(this);
 		for (int i = 0; i < n.vl.size(); i++) {
 			n.vl.elementAt(i).accept(this);
@@ -75,6 +84,7 @@ public class TypeCheckVisitor implements IVisitor<Type> {
 		for (int i = 0; i < n.ml.size(); i++) {
 			n.ml.elementAt(i).accept(this);
 		}
+		this.currClass = null;
 		return null;
 	}
 
@@ -83,6 +93,7 @@ public class TypeCheckVisitor implements IVisitor<Type> {
 	// VarDeclList vl;
 	// MethodDeclList ml;
 	public Type visit(ClassDeclExtends n) {
+		this.currClass = this.symbolTable.getClass(n.i.s);
 		n.i.accept(this);
 		n.j.accept(this);
 		for (int i = 0; i < n.vl.size(); i++) {
@@ -91,6 +102,7 @@ public class TypeCheckVisitor implements IVisitor<Type> {
 		for (int i = 0; i < n.ml.size(); i++) {
 			n.ml.elementAt(i).accept(this);
 		}
+		this.currClass = null;
 		return null;
 	}
 
@@ -109,6 +121,7 @@ public class TypeCheckVisitor implements IVisitor<Type> {
 	// StatementList sl;
 	// Exp e;
 	public Type visit(MethodDecl n) {
+		this.currMethod = this.symbolTable.getMethod(n.i.toString(), this.currClass.getId());
 		n.t.accept(this);
 		n.i.accept(this);
 		for (int i = 0; i < n.fl.size(); i++) {
