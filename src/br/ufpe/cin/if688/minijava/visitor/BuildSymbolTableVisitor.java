@@ -71,9 +71,13 @@ public class BuildSymbolTableVisitor implements IVisitor<Void> {
 		String cn = n.i1.toString();
 		this.symbolTable.addClass(cn, null);
 		this.currClass = this.symbolTable.getClass(cn);
+		this.currClass.addMethod("main", null);
+		this.currMethod = this.currClass.getMethod("main");
+		this.currMethod.addParam(n.i2.toString(), new IntArrayType());
 		n.i1.accept(this);
 		n.i2.accept(this);
 		n.s.accept(this);
+		this.currMethod = null;
 		this.currClass = null;
 		return null;
 	}
@@ -85,17 +89,17 @@ public class BuildSymbolTableVisitor implements IVisitor<Void> {
 		String cn = n.i.toString();
 		if(!this.symbolTable.addClass(cn, null)) {
 			System.err.println("error: duplicate class: " + cn);
-		} else {
-			this.currClass = this.symbolTable.getClass(cn);
-			n.i.accept(this);
-			for (int i = 0; i < n.vl.size(); i++) {
-				n.vl.elementAt(i).accept(this);
-			}
-			for (int i = 0; i < n.ml.size(); i++) {
-				n.ml.elementAt(i).accept(this);
-			}
-			this.currClass = null;
+			System.exit(0);
 		}
+		this.currClass = this.symbolTable.getClass(cn);
+		n.i.accept(this);
+		for (int i = 0; i < n.vl.size(); i++) {
+			n.vl.elementAt(i).accept(this);
+		}
+		for (int i = 0; i < n.ml.size(); i++) {
+			n.ml.elementAt(i).accept(this);
+		}
+		this.currClass = null;
 		return null;
 	}
 
@@ -107,41 +111,38 @@ public class BuildSymbolTableVisitor implements IVisitor<Void> {
 		String cn = n.i.toString();
 		if(!this.symbolTable.addClass(cn, n.j.toString())) {
 			System.err.println("error: duplicate class: " + cn);
-		} else {
-			this.currClass = this.symbolTable.getClass(cn);
-			n.i.accept(this);
-			n.j.accept(this);
-			for (int i = 0; i < n.vl.size(); i++) {
-				n.vl.elementAt(i).accept(this);
-			}
-			for (int i = 0; i < n.ml.size(); i++) {
-				n.ml.elementAt(i).accept(this);
-			}
-			this.currClass = null;
+			System.exit(0);
 		}
+		this.currClass = this.symbolTable.getClass(cn);
+		n.i.accept(this);
+		n.j.accept(this);
+		for (int i = 0; i < n.vl.size(); i++) {
+			n.vl.elementAt(i).accept(this);
+		}
+		for (int i = 0; i < n.ml.size(); i++) {
+			n.ml.elementAt(i).accept(this);
+		}
+		this.currClass = null;
 		return null;
 	}
 
 	// Type t;
 	// Identifier i;
 	public Void visit(VarDecl n) {
-		boolean ok = true;
 		String idn = n.i.toString();
 		if(this.currMethod != null) {
 			if(!this.currMethod.addVar(idn, n.t)) {
 				System.err.println("error: variable " + idn + " is already defined in method " + this.currMethod.getId() + "(...)");
-				ok = false;
+				System.exit(0);
 			}
 		} else {
 			if(!this.currClass.addVar(idn, n.t)) {
 				System.err.println("error: variable " + idn + " is already defined in class " + this.currClass.getId());
-				ok = false;
+				System.exit(0);
 			}
 		}
-		if(ok) {
-			n.t.accept(this);
-			n.i.accept(this);
-		}
+		n.t.accept(this);
+		n.i.accept(this);
 		return null;
 	}
 
@@ -155,22 +156,22 @@ public class BuildSymbolTableVisitor implements IVisitor<Void> {
 		String idn = n.i.toString();
 		if(!this.currClass.addMethod(idn, n.t)) {
 			System.err.println("error: method " + idn + "(...) is already defined in class " + this.currClass.getId());
-		} else {
-			this.currMethod = this.currClass.getMethod(idn);
-			n.t.accept(this);
-			n.i.accept(this);
-			for (int i = 0; i < n.fl.size(); i++) {
-				n.fl.elementAt(i).accept(this);
-			}
-			for (int i = 0; i < n.vl.size(); i++) {
-				n.vl.elementAt(i).accept(this);
-			}
-			for (int i = 0; i < n.sl.size(); i++) {
-				n.sl.elementAt(i).accept(this);
-			}
-			n.e.accept(this);
-			this.currMethod = null;
+			System.exit(0);
 		}
+		this.currMethod = this.currClass.getMethod(idn);
+		n.t.accept(this);
+		n.i.accept(this);
+		for (int i = 0; i < n.fl.size(); i++) {
+			n.fl.elementAt(i).accept(this);
+		}
+		for (int i = 0; i < n.vl.size(); i++) {
+			n.vl.elementAt(i).accept(this);
+		}
+		for (int i = 0; i < n.sl.size(); i++) {
+			n.sl.elementAt(i).accept(this);
+		}
+		n.e.accept(this);
+		this.currMethod = null;
 		return null;
 	}
 
@@ -180,10 +181,10 @@ public class BuildSymbolTableVisitor implements IVisitor<Void> {
 		String idn = n.i.toString();
 		if(!this.currMethod.addParam(idn, n.t)) {
 			System.err.println("error: parameter " + idn + " is already defined in method " + this.currMethod.getId());
-		} else {
-			n.t.accept(this);
-			n.i.accept(this);
+			System.exit(0);
 		}
+		n.t.accept(this);
+		n.i.accept(this);
 		return null;
 	}
 
