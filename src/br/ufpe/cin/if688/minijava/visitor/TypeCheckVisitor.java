@@ -44,11 +44,15 @@ public class TypeCheckVisitor implements IVisitor<Type> {
 	private SymbolTable symbolTable;
     private Method currMethod;
     private Class currClass;
+    private boolean isVariable;
+    private boolean isMethod;
 
-	TypeCheckVisitor(SymbolTable st) {
+	public TypeCheckVisitor(SymbolTable st) {
 		symbolTable = st;
 		this.currClass = null;
 		this.currMethod = null;
+		this.isVariable = false;
+		this.isMethod = false;
 	}
 
 	// MainClass m;
@@ -65,9 +69,13 @@ public class TypeCheckVisitor implements IVisitor<Type> {
 	// Statement s;
 	public Type visit(MainClass n) {
 		this.currClass = this.symbolTable.getClass(n.i1.s);
+		this.currMethod = this.symbolTable.getMethod("main", this.currClass.getId());
 		n.i1.accept(this);
+		this.isVariable = true;
 		n.i2.accept(this);
+		this.isVariable = false;
 		n.s.accept(this);
+		this.currMethod = null;
 		this.currClass = null;
 		return null;
 	}
@@ -109,9 +117,11 @@ public class TypeCheckVisitor implements IVisitor<Type> {
 	// Type t;
 	// Identifier i;
 	public Type visit(VarDecl n) {
-		n.t.accept(this);
+		Type t = n.t.accept(this);
+		this.isVariable = true;
 		n.i.accept(this);
-		return null;
+		this.isVariable = false;
+		return t;
 	}
 
 	// Type t;
@@ -122,8 +132,10 @@ public class TypeCheckVisitor implements IVisitor<Type> {
 	// Exp e;
 	public Type visit(MethodDecl n) {
 		this.currMethod = this.symbolTable.getMethod(n.i.toString(), this.currClass.getId());
-		n.t.accept(this);
+		Type tMet = n.t.accept(this);
+		this.isMethod = true;
 		n.i.accept(this);
+		this.isMethod = false;
 		for (int i = 0; i < n.fl.size(); i++) {
 			n.fl.elementAt(i).accept(this);
 		}
@@ -133,33 +145,44 @@ public class TypeCheckVisitor implements IVisitor<Type> {
 		for (int i = 0; i < n.sl.size(); i++) {
 			n.sl.elementAt(i).accept(this);
 		}
-		n.e.accept(this);
-		return null;
+		Type tExp = n.e.accept(this);
+		if(!this.symbolTable.compareTypes(tMet, tExp)) {
+			System.err.println("error: incompatible types: " + this.getTypeName(tExp) + " cannot be converted to " + this.getTypeName(tMet));
+			System.exit(0);
+		}
+		this.currMethod = null;
+		return tMet;
 	}
 
 	// Type t;
 	// Identifier i;
 	public Type visit(Formal n) {
-		n.t.accept(this);
+		Type t = n.t.accept(this);
+		this.isVariable = true;
 		n.i.accept(this);
-		return null;
+		this.isVariable = false;
+		return t;
 	}
 
 	public Type visit(IntArrayType n) {
-		return null;
+		return n;
 	}
 
 	public Type visit(BooleanType n) {
-		return null;
+		return n;
 	}
 
 	public Type visit(IntegerType n) {
-		return null;
+		return n;
 	}
 
 	// String s;
 	public Type visit(IdentifierType n) {
-		return null;
+		if(!this.symbolTable.containsClass(n.s)) {
+			System.err.println("error: cannot find symbol: " + n.s);
+			System.exit(0);
+		}
+		return n;
 	}
 
 	// StatementList sl;
@@ -173,7 +196,11 @@ public class TypeCheckVisitor implements IVisitor<Type> {
 	// Exp e;
 	// Statement s1,s2;
 	public Type visit(If n) {
-		n.e.accept(this);
+		Type t = n.e.accept(this);
+		if(!this.symbolTable.compareTypes(t, new BooleanType())) {
+			System.err.println("error: incompatible types: " + this.getTypeName(t) + " cannot be converted to BooleanType" );
+			System.exit(0);
+		}
 		n.s1.accept(this);
 		n.s2.accept(this);
 		return null;
@@ -182,7 +209,11 @@ public class TypeCheckVisitor implements IVisitor<Type> {
 	// Exp e;
 	// Statement s;
 	public Type visit(While n) {
-		n.e.accept(this);
+		Type t = n.e.accept(this);
+		if(!this.symbolTable.compareTypes(t, new BooleanType())) {
+			System.err.println("error: incompatible types: " + this.getTypeName(t) + " cannot be converted to BooleanType" );
+			System.exit(0);
+		}
 		n.s.accept(this);
 		return null;
 	}
@@ -196,65 +227,122 @@ public class TypeCheckVisitor implements IVisitor<Type> {
 	// Identifier i;
 	// Exp e;
 	public Type visit(Assign n) {
-		n.i.accept(this);
-		n.e.accept(this);
+		this.isVariable = true;
+		Type ti = n.i.accept(this);
+		this.isVariable = false;
+		Type te = n.e.accept(this);
+		if(!this.symbolTable.compareTypes(ti, te)) {
+			System.err.println("error: incompatible types: " + this.getTypeName(te) + " cannot be converted to " + this.getTypeName(ti) );
+			System.exit(0);
+		}
 		return null;
 	}
 
 	// Identifier i;
 	// Exp e1,e2;
 	public Type visit(ArrayAssign n) {
-		n.i.accept(this);
-		n.e1.accept(this);
-		n.e2.accept(this);
+		this.isVariable = true;
+		Type ti = n.i.accept(this);
+		this.isVariable = false;
+		Type te1 = n.e1.accept(this);
+		Type te2 = n.e2.accept(this);
+		if(!this.symbolTable.compareTypes(ti, new IntArrayType())) {
+			System.err.println("error: IntArrayType required, but " + this.getTypeName(ti) + " found");
+			System.exit(0);
+		}
+		if(!this.symbolTable.compareTypes(te1, new IntegerType())) {
+			System.err.println("error: incompatible types: " + this.getTypeName(te1) + " cannot be converted to IntegerType");
+			System.exit(0);
+		}
+		if(!this.symbolTable.compareTypes(te2, new IntegerType())) {
+			System.err.println("error: incompatible types: " + this.getTypeName(te2) + " cannot be converted to IntegerType");
+			System.exit(0);
+		}
 		return null;
 	}
 
 	// Exp e1,e2;
 	public Type visit(And n) {
-		n.e1.accept(this);
-		n.e2.accept(this);
-		return null;
+		Type t1 = n.e1.accept(this);
+		Type t2 = n.e2.accept(this);
+		Type b = new BooleanType();
+		if((!this.symbolTable.compareTypes(t1, b)) || (!this.symbolTable.compareTypes(t2, b))) {
+			System.err.println("error: bad operand types for binary operator 'AND'");
+			System.exit(0);
+		}
+		return b;
 	}
 
 	// Exp e1,e2;
 	public Type visit(LessThan n) {
-		n.e1.accept(this);
-		n.e2.accept(this);
-		return null;
+		Type t1 = n.e1.accept(this);
+		Type t2 = n.e2.accept(this);
+		Type i = new IntegerType();
+		if((!this.symbolTable.compareTypes(t1, i)) || (!this.symbolTable.compareTypes(t2, i))) {
+			System.err.println("error: bad operand types for binary operator 'LESS THAN'");
+			System.exit(0);
+		}
+		return new BooleanType();
 	}
 
 	// Exp e1,e2;
 	public Type visit(Plus n) {
-		n.e1.accept(this);
-		n.e2.accept(this);
-		return null;
+		Type t1 = n.e1.accept(this);
+		Type t2 = n.e2.accept(this);
+		Type i = new IntegerType();
+		if((!this.symbolTable.compareTypes(t1, i)) || (!this.symbolTable.compareTypes(t2, i))) {
+			System.err.println("error: bad operand types for binary operator 'PLUS'");
+			System.exit(0);
+		}
+		return i;
 	}
 
 	// Exp e1,e2;
 	public Type visit(Minus n) {
-		n.e1.accept(this);
-		n.e2.accept(this);
-		return null;
+		Type t1 = n.e1.accept(this);
+		Type t2 = n.e2.accept(this);
+		Type i = new IntegerType();
+		if((!this.symbolTable.compareTypes(t1, i)) || (!this.symbolTable.compareTypes(t2, i))) {
+			System.err.println("error: bad operand types for binary operator 'MINUS'");
+			System.exit(0);
+		}
+		return i;
 	}
 
 	// Exp e1,e2;
 	public Type visit(Times n) {
-		n.e1.accept(this);
-		n.e2.accept(this);
-		return null;
+		Type t1 = n.e1.accept(this);
+		Type t2 = n.e2.accept(this);
+		Type i = new IntegerType();
+		if((!this.symbolTable.compareTypes(t1, i)) || (!this.symbolTable.compareTypes(t2, i))) {
+			System.err.println("error: bad operand types for binary operator 'TIMES'");
+			System.exit(0);
+		}
+		return i;
 	}
 
 	// Exp e1,e2;
 	public Type visit(ArrayLookup n) {
-		n.e1.accept(this);
-		n.e2.accept(this);
-		return null;
+		Type t1 = n.e1.accept(this);
+		Type t2 = n.e2.accept(this);
+		if(!this.symbolTable.compareTypes(t1, new IntArrayType())) {
+			System.err.println("error: IntArrayType required, but " + this.getTypeName(t1) + " found");
+			System.exit(0);
+		}
+		if(!this.symbolTable.compareTypes(t2, new IntegerType())) {
+			System.err.println("error: incompatible types: " + this.getTypeName(t2) + " cannot be converted to IntegerType");
+			System.exit(0);
+		}
+		return new IntegerType();
 	}
 
 	// Exp e;
 	public Type visit(ArrayLength n) {
-		n.e.accept(this);
+		Type t = n.e.accept(this);
+		if(!this.symbolTable.compareTypes(t, new IntArrayType())) {
+			System.err.println("error: IntArrayType required, but " + this.getTypeName(t) + " found");
+			System.exit(0);
+		}
 		return null;
 	}
 
@@ -262,55 +350,113 @@ public class TypeCheckVisitor implements IVisitor<Type> {
 	// Identifier i;
 	// ExpList el;
 	public Type visit(Call n) {
-		n.e.accept(this);
-		n.i.accept(this);
-		for (int i = 0; i < n.el.size(); i++) {
-			n.el.elementAt(i).accept(this);
+		Type to = n.e.accept(this);
+		if(to instanceof IdentifierType) {
+			Class cCall = this.symbolTable.getClass(((IdentifierType) to).toString());
+			Method mCall = this.symbolTable.getMethod(n.i.toString(), cCall.getId());
+			Class currClassBK = this.currClass;
+			this.currClass = cCall;
+			this.isMethod = true;
+			Type ti = n.i.accept(this);
+			this.isMethod = false;
+			this.currClass = currClassBK;
+			int count = 0;
+			while (count < n.el.size()) {
+				Type t1 = n.el.elementAt(count).accept(this);
+				Type t2 = mCall.getParamAt(count).type();
+				if(t2 == null) {
+					System.err.println("error: method " + mCall.getId() + " in class " + cCall.getId() + " cannot be applied to given types. Formal argument lists differ in length");
+					System.exit(0);
+				} else if(!this.symbolTable.compareTypes(t1, t2)) {
+					System.err.println("error: incompatible types: " + this.getTypeName(t1) + " cannot be converted to " + this.getTypeName(t2));
+					System.exit(0);
+				}
+				count++;
+			}
+			if(mCall.getParamAt(count).type() != null) {
+				System.err.println("error: method " + mCall.getId() + " in class " + cCall.getId() + " cannot be applied to given types. Formal argument lists differ in length");
+				System.exit(0);
+			}
+			return ti;
+		} else {
+			System.err.println("error: IdentifierType required, but " + this.getTypeName(to) + " found");
+			System.exit(0);
 		}
 		return null;
 	}
 
 	// int i;
 	public Type visit(IntegerLiteral n) {
-		return null;
+		return new IntegerType();
 	}
 
 	public Type visit(True n) {
-		return null;
+		return new BooleanType();
 	}
 
 	public Type visit(False n) {
-		return null;
+		return new BooleanType();
 	}
 
 	// String s;
 	public Type visit(IdentifierExp n) {
-		return null;
+		Type t = this.symbolTable.getVarType(this.currMethod, this.currClass, n.s);
+		return t;
 	}
 
 	public Type visit(This n) {
-		return null;
+		return this.currClass.type();
 	}
 
 	// Exp e;
 	public Type visit(NewArray n) {
-		n.e.accept(this);
-		return null;
+		Type t = n.e.accept(this);
+		if(!this.symbolTable.compareTypes(t, new IntegerType())) {
+			System.err.println("error: incompatible types: " + this.getTypeName(t) + " cannot be converted to IntegerType");
+			System.exit(0);
+		}
+		return new IntArrayType();
 	}
 
 	// Identifier i;
 	public Type visit(NewObject n) {
-		return null;
+		return n.i.accept(this);
 	}
 
 	// Exp e;
 	public Type visit(Not n) {
-		n.e.accept(this);
+		Type t = n.e.accept(this);
+		Type b = new BooleanType();
+		if(!this.symbolTable.compareTypes(t, b)) {
+			System.err.println("error: bad operand type for unary operator 'NOT'");
+			System.exit(0);
+		}
 		return null;
 	}
 
 	// String s;
 	public Type visit(Identifier n) {
-		return null;
+		if(this.isVariable) {
+			return this.symbolTable.getVarType(this.currMethod, this.currClass, n.toString());
+		} else if(this.isMethod) {
+			return this.symbolTable.getMethodType(n.toString(), this.currClass.getId());
+		} else {
+			Class c = this.symbolTable.getClass(n.toString());
+			if(c == null) {
+				System.err.println("error: cannot find symbol: " + n.toString());
+				System.exit(0);
+			}
+			return c.type();
+		}
+	}
+	
+	private String getTypeName(Type t) {
+		if(t instanceof IdentifierType) {
+			return ((IdentifierType) t).s;
+		} else if(t != null){
+			return t.getClass().getSimpleName();
+		} else {
+			return "null";
+		}
 	}
 }
