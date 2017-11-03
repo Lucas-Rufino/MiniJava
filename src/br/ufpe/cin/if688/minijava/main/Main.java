@@ -17,6 +17,7 @@ import br.ufpe.cin.if688.minijava.ast.MethodDeclList;
 import br.ufpe.cin.if688.minijava.ast.Print;
 import br.ufpe.cin.if688.minijava.ast.Program;
 import br.ufpe.cin.if688.minijava.ast.StatementList;
+import br.ufpe.cin.if688.minijava.ast.True;
 import br.ufpe.cin.if688.minijava.ast.VarDecl;
 import br.ufpe.cin.if688.minijava.ast.VarDeclList;
 import br.ufpe.cin.if688.minijava.visitor.BuildSymbolTableVisitor;
@@ -78,7 +79,7 @@ public class Main {
 				new FormalList(),
 				new VarDeclList(),
 				new StatementList(),
-				new IntegerLiteral(0)
+				new True()
 		));
 		
 		ClassDeclSimple A = new ClassDeclSimple(

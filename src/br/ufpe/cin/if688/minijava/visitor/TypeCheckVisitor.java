@@ -38,6 +38,7 @@ import br.ufpe.cin.if688.minijava.ast.While;
 import br.ufpe.cin.if688.minijava.symboltable.Method;
 import br.ufpe.cin.if688.minijava.symboltable.Class;
 import br.ufpe.cin.if688.minijava.symboltable.SymbolTable;
+import br.ufpe.cin.if688.minijava.symboltable.Variable;
 
 public class TypeCheckVisitor implements IVisitor<Type> {
 
@@ -343,7 +344,7 @@ public class TypeCheckVisitor implements IVisitor<Type> {
 			System.err.println("error: IntArrayType required, but " + this.getTypeName(t) + " found");
 			System.exit(0);
 		}
-		return null;
+		return new IntegerType();
 	}
 
 	// Exp e;
@@ -352,7 +353,7 @@ public class TypeCheckVisitor implements IVisitor<Type> {
 	public Type visit(Call n) {
 		Type to = n.e.accept(this);
 		if(to instanceof IdentifierType) {
-			Class cCall = this.symbolTable.getClass(((IdentifierType) to).toString());
+			Class cCall = this.symbolTable.getClass(((IdentifierType) to).s);
 			Method mCall = this.symbolTable.getMethod(n.i.toString(), cCall.getId());
 			Class currClassBK = this.currClass;
 			this.currClass = cCall;
@@ -363,17 +364,17 @@ public class TypeCheckVisitor implements IVisitor<Type> {
 			int count = 0;
 			while (count < n.el.size()) {
 				Type t1 = n.el.elementAt(count).accept(this);
-				Type t2 = mCall.getParamAt(count).type();
-				if(t2 == null) {
+				Variable v = mCall.getParamAt(count);
+				if(v == null) {
 					System.err.println("error: method " + mCall.getId() + " in class " + cCall.getId() + " cannot be applied to given types. Formal argument lists differ in length");
 					System.exit(0);
-				} else if(!this.symbolTable.compareTypes(t1, t2)) {
-					System.err.println("error: incompatible types: " + this.getTypeName(t1) + " cannot be converted to " + this.getTypeName(t2));
+				} else if(!this.symbolTable.compareTypes(t1, v.type())) {
+					System.err.println("error: incompatible types: " + this.getTypeName(t1) + " cannot be converted to " + this.getTypeName(v.type()));
 					System.exit(0);
 				}
 				count++;
 			}
-			if(mCall.getParamAt(count).type() != null) {
+			if(mCall.getParamAt(count) != null) {
 				System.err.println("error: method " + mCall.getId() + " in class " + cCall.getId() + " cannot be applied to given types. Formal argument lists differ in length");
 				System.exit(0);
 			}
@@ -431,7 +432,7 @@ public class TypeCheckVisitor implements IVisitor<Type> {
 			System.err.println("error: bad operand type for unary operator 'NOT'");
 			System.exit(0);
 		}
-		return null;
+		return b;
 	}
 
 	// String s;
